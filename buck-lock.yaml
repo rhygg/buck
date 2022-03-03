@@ -1,0 +1,36 @@
+lockFileVersion: 1.0.0
+dependencies:
+    - name: electron
+      version: 17.1.0
+    - name: '@nestjs/core'
+      version: 8.4.0
+    - name: ejs
+      version: 3.1.6
+    - name: mongoose
+      version: 6.2.4
+    - name: chalk
+      version: 5.0.0
+    - name: '@angular/core'
+      version: 13.2.5
+    - name: ansi
+      version: 0.3.1
+    - name: callista
+      version: 1.0.18
+    - name: express
+      version: 4.17.3
+    - name: buck
+      version: 0.1.0
+    - name: canvacord
+      version: 5.2.3
+    - name: express
+      version: 4.17.3
+    - name: fastify
+      version: 3.27.2
+    - name: express
+      version: 4.17.3
+    - name: gojs
+      version: 2.2.5
+    - name: fastify
+      version: 3.27.2
+devDependencies: []
+packages: []

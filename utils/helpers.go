@@ -2,7 +2,6 @@ package utils
 
 import (
 	"os"
-
 	"github.com/tidwall/gjson"
 )
 
@@ -39,3 +38,4 @@ func Exists(path string) (bool, error) {
 	}
 	return false, err
 }
+

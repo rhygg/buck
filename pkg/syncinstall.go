@@ -48,7 +48,7 @@ func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, r
 		version := gjson.Get(d, "dist-tags.latest").String()
 		mods.Dependencies = append(mods.Dependencies, DependenciesField{Name: name, Version: version})
 		if errorC != nil {
-			fmt.Print("[Buck] " + errorC.Error())
+      fmt.Print("[Buck] cache: " + errorC.Error())
 		}
 		group.Add(func() {
 			InstallPackage(Mcache, UserDirectories{
@@ -66,27 +66,27 @@ func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, r
 
 		mods.DependencyPkgs = append(mods.DependencyPkgs, deps...)
 	}
-  var exDeps []DependenciesField 
-  var Lf   LockFile
-  ex, err := utils.Exists(filepath.Join(cwd, "buck-lock.yaml"))
-  if err != nil {
-    return errors.New("could not check if lockfile exists")
-  }
-  if ex == true {
-    yfile, err := ioutil.ReadFile(filepath.Join(cwd, "buck-lock.yaml"))
-     if err != nil {
-          return errors.New("could not read lockfile")
-     }
-     err2 := yaml.Unmarshal(yfile, &Lf)
-     if err2 != nil {
-          return err2
-     }
+	var exDeps []DependenciesField
+	var Lf LockFile
+	ex, err := utils.Exists(filepath.Join(cwd, "buck-lock.yaml"))
+	if err != nil {
+		return errors.New("could not check if lockfile exists")
+	}
+	if ex == true {
+		yfile, err := ioutil.ReadFile(filepath.Join(cwd, "buck-lock.yaml"))
+		if err != nil {
+			return errors.New("could not read lockfile")
+		}
+		err2 := yaml.Unmarshal(yfile, &Lf)
+		if err2 != nil {
+			return err2
+		}
 
-     exDeps = Lf.Dependencies
+		exDeps = Lf.Dependencies
 
-     mods.Dependencies = append(mods.Dependencies, exDeps...)
+		mods.Dependencies = append(mods.Dependencies, exDeps...)
 
-  }
+	}
 	lfdata := LockFile{LockVersion: "1.0.0", Dependencies: mods.Dependencies}
 	marsh, err := yaml.Marshal(&lfdata)
 	if err != nil {
@@ -97,7 +97,6 @@ func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, r
 		return err
 	}
 	elapsed := time.Since(start)
-
 	fmt.Println("🐕 Installed: " + strings.Join(packages, ", ") + " in " + elapsed.String())
 	return nil
 }

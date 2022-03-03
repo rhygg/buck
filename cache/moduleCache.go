@@ -1,19 +1,22 @@
 package cache
 
 import (
-	"net/http"
-
 	"github.com/c4milo/unpackit"
+	"net/http"
+  "io"
+  "github.com/schollz/progressbar/v3"
 )
 
 func StoreCache(name string, url string, modCacheDir string) bool {
-
 	resp, err := http.Get(url)
-
+  bar := progressbar.DefaultBytes(
+    resp.ContentLength,
+    "downloading: "+name,
+)
+io.Copy(io.Writer(bar), resp.Body)
 	if err != nil {
-		return false
+		panic(err)
 	}
-
 	if resp.StatusCode != 200 {
 		return false
 	}
