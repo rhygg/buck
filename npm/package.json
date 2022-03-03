@@ -1,0 +1,8 @@
+{
+	"name":"buck",
+	"version":"1.0.0-beta",
+	"description":"⚡Fast Package Manager for Node.js",
+	"dependencies": {
+		"@terascope/fetch-github-release": "^0.8.7"
+	}
+}
