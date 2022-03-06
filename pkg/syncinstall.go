@@ -19,6 +19,7 @@ import (
 type InstalledMods struct {
 	Dependencies   []DependenciesField
 	DependencyPkgs []DependenciesField
+	Packages       []Packages
 }
 
 func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, rcache cache.RequestData, count int, cwd string, homeDir string) error {
@@ -46,9 +47,12 @@ func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, r
 		d, _ := data.(string)
 		name := gjson.Get(d, "name").String()
 		version := gjson.Get(d, "dist-tags.latest").String()
+		integrity := gjson.Get(d, version+".dist.integrity").String()
+		resolved := gjson.Get(d, version+".dist.tarball").String()
+		engine := gjson.Get(d, version+".engines").String()
 		mods.Dependencies = append(mods.Dependencies, DependenciesField{Name: name, Version: version})
 		if errorC != nil {
-      fmt.Print("[Buck] cache: " + errorC.Error())
+			fmt.Print("[Buck] cache: " + errorC.Error())
 		}
 		group.Add(func() {
 			InstallPackage(Mcache, UserDirectories{
@@ -65,6 +69,7 @@ func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, r
 		}, Mcache)
 
 		mods.DependencyPkgs = append(mods.DependencyPkgs, deps...)
+    mods.Packages = append(mods.Packages, Packages{Dependencies: deps, Name: name, Version: version, Integrity: integrity, Resolved: resolved, Engine: engine, Dev: false })
 	}
 	var exDeps []DependenciesField
 	var Lf LockFile
@@ -85,9 +90,8 @@ func InstallPackagesSynchronously(packages []string, Mcache cache.ModuleCache, r
 		exDeps = Lf.Dependencies
 
 		mods.Dependencies = append(mods.Dependencies, exDeps...)
-
 	}
-	lfdata := LockFile{LockVersion: "1.0.0", Dependencies: mods.Dependencies}
+  lfdata := LockFile{LockVersion: "1.0.0", Dependencies: mods.Dependencies, Packages: mods.Packages }
 	marsh, err := yaml.Marshal(&lfdata)
 	if err != nil {
 		return errors.New("could not create lockfile.")

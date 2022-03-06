@@ -1,22 +1,25 @@
 package pkg
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 
-	cp "github.com/otiai10/copy"
+	// "path/filepath
+	"io"
+	"strings"
 
-	// "path/filepath"
-	"github.com/c4milo/unpackit"
+	"github.com/codeclysm/extract/v3"
 	"github.com/fatih/color"
 	"github.com/k0kubun/go-ansi"
 	"github.com/rhygg/buck/cache"
 	"github.com/rhygg/buck/utils"
 	"github.com/schollz/progressbar/v3"
 	"github.com/tidwall/gjson"
-	"io"
-	"strings"
 )
 
 type Deps struct {
@@ -30,8 +33,13 @@ func InstallDeps(data string, name string, dirs UserDirectories, cache cache.Mod
 	vsion := utils.Request(utils.NpmRegistryURL + name + "/" + latest.String())
 	deps := gjson.Get(vsion, "dependencies")
 	lent := len(deps.Array())
-  fmt.Println(lent)
+	fmt.Println(lent)
 	count := 1
+	deps.ForEach(func(key, value gjson.Result) bool {
+		count++
+		return true
+	})
+	c := 1
 	deps.ForEach(func(key, value gjson.Result) bool {
 		name := key.String()
 		var n string
@@ -42,13 +50,13 @@ func InstallDeps(data string, name string, dirs UserDirectories, cache cache.Mod
 			n = name
 		}
 		url := utils.NpmRegistryURL + name + "/-/" + n + "-" + ver + ".tgz"
-		err := Download(url, name, dirs, ver, cache, count, lent)
 		ds = append(ds, DependenciesField{
 			Name:    name,
 			Version: value.String(),
 		})
-   count ++
-return err == nil
+		err := Download(url, name, dirs, ver, cache, count, c)
+
+		return err == nil
 	})
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgHiYellow).SprintFunc()
@@ -67,7 +75,7 @@ return err == nil
 	return ds
 }
 
-func Download(url string, name string, dirs UserDirectories, vsion string, cache cache.ModuleCache, count int, lent int) error {
+func Download(url string, name string, dirs UserDirectories, vsion string, cache cache.ModuleCache, count int, c int) error {
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -79,7 +87,7 @@ func Download(url string, name string, dirs UserDirectories, vsion string, cache
 		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionShowBytes(true),
 		progressbar.OptionSetWidth(15),
-    progressbar.OptionSetDescription(fmt.Sprintf("[cyan][%d/%d][reset] pkg: %s", count, lent, name)),
+		progressbar.OptionSetDescription(fmt.Sprintf("[cyan][%d/%d][reset] pkg: %s", count, count, name)),
 		progressbar.OptionSetTheme(progressbar.Theme{
 			Saucer:        "[green]=[reset]",
 			SaucerHead:    "[green]>[reset]",
@@ -87,25 +95,37 @@ func Download(url string, name string, dirs UserDirectories, vsion string, cache
 			BarStart:      "[",
 			BarEnd:        "]",
 		}))
-	io.Copy(io.Writer(bar), resp.Body)
-	_, err = unpackit.Unpack(resp.Body, filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, name))
+	exists, err := utils.Exists(filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, filepath.Base(url)))
 	if err != nil {
-		fmt.Println("[BUCK] download: " + err.Error())
+		fmt.Println("[BUCK] download(temp): " + err.Error())
+	}
+
+	if exists {
+		err := os.Remove(filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, filepath.Base(url)))
+		if err != nil {
+			fmt.Println("[BUCK] download(temp): " + err.Error())
+		}
+	}
+
+	f, _ := os.OpenFile(filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, filepath.Base(url)), os.O_CREATE|os.O_WRONLY, 0644)
+	defer f.Close()
+	io.Copy(io.MultiWriter(bar, f), resp.Body)
+	var shift = func(path string) string {
+		parts := strings.Split(path, string(filepath.Separator))
+		parts = parts[1:]
+		return strings.Join(parts, string(filepath.Separator))
+	}
+	data, _ := ioutil.ReadFile(filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, filepath.Base(url)))
+	buffer := bytes.NewBuffer(data)
+	err = extract.Archive(context.Background(), buffer, filepath.Join(dirs.CWD, "node_modules", name), shift)
+	if err != nil {
+		fmt.Println("[BUCK] download(unpack): " + err.Error())
 	}
 	chk, _ := cache.Cache.Get("module:" + name)
-	if chk == true {
-		err = cp.Copy(filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, name, "package"), filepath.Join(dirs.CWD, "node_modules", name))
-		if err != nil {
-			fmt.Println("[BUCK] download: " + err.Error())
-		}
-	} else {
+	if chk == false {
 		err = cache.Cache.Set("module:"+name, true)
 		if err != nil {
 			fmt.Print("Could not set module cache.")
-		}
-		err = cp.Copy(filepath.Join(dirs.HomeDir, dirs.ModuleCacheDir, name, "package"), filepath.Join(dirs.CWD, "node_modules", name))
-		if err != nil {
-			fmt.Println("[BUCK] download: " + err.Error())
 		}
 	}
 	return nil
